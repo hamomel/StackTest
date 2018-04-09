@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.View
+import android.widget.CheckBox
+import android.widget.RadioGroup
 import kotlinx.android.synthetic.main.activity.*
 
 /**
@@ -28,6 +30,7 @@ open class BaseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity)
         setOnClicks()
+        setCheckListeners()
         nameTv.text = this::class.java.simpleName
         logIntent(intent)
         showTasks()
@@ -38,10 +41,12 @@ open class BaseActivity : AppCompatActivity() {
         val tasks = manager.appTasks
         val builder = StringBuilder()
         tasks.forEach {
+            val className = it?.taskInfo?.baseActivity?.className?.replaceBeforeLast('.', "") ?: "null"
+
             if (builder.isNotEmpty()) builder.append("\n")
             builder.append("Activities in stack: ${it.taskInfo.numActivities}\n")
-            builder.append("Top activity: ${it.taskInfo.topActivity.className.replaceBeforeLast('.', "")}\n")
-            builder.append("Base activity: ${it.taskInfo.baseActivity.className.replaceBeforeLast('.', "")}")
+            builder.append("Top activity: $className\n")
+            builder.append("Base activity: $className")
         }
 
         taskInfoTv.text = builder.toString()
@@ -56,6 +61,35 @@ open class BaseActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent?) {
         logIntent(intent)
         super.onNewIntent(intent)
+    }
+
+    private fun setCheckListeners() {
+        clearTask.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                newTask.setOnCheckedChangeListener(null)
+            } else {
+                newTask.setHighLiteListener(listOf(multipleTask))
+            }
+            newTask.isChecked = isChecked
+            newTask.isEnabled = !isChecked
+        }
+
+        clearTop.setHighLiteListener(listOf(singleTop, newTask))
+        multipleTask.setHighLiteListener(listOf(newTask, newDocument))
+        newDocument.setHighLiteListener(listOf(multipleTask))
+        newTask.setHighLiteListener(listOf(multipleTask))
+    }
+
+    private fun CheckBox.setHighLiteListener(others: List<CheckBox>) {
+        setOnCheckedChangeListener {buttonView, isChecked ->
+            others.forEach {
+                if (isChecked){
+                    it.setTextColor(getColor(R.color.colorAccent))
+                } else{
+                    it.setTextColor(buttonView.textColors)
+                }
+            }
+        }
     }
 
     private fun setOnClicks() {
@@ -92,7 +126,7 @@ open class BaseActivity : AppCompatActivity() {
         var flags = 0
         listOf(singleTop, newTask, clearTop, clearTask, excludeFromRecents, multipleTask, newDocument).forEach {
             if (it.isChecked) {
-                flags = flags or when(it.id) {
+                flags = flags or when (it.id) {
                     R.id.singleTop -> Intent.FLAG_ACTIVITY_SINGLE_TOP
                     R.id.newTask -> Intent.FLAG_ACTIVITY_NEW_TASK
                     R.id.clearTop -> Intent.FLAG_ACTIVITY_CLEAR_TOP
